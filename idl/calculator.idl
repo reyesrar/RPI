@@ -1,0 +1,6 @@
+interface Calculator {
+  number add(number a, number b);
+  number subtract(number a, number b);
+  number multiply(number a, number b);
+  number divide(number a, number b);
+}
