@@ -2,5 +2,9 @@
     "name": "tcp-nodejs",
     "version": "1.0.0",
     "description": "TCP server and client implemented in Node.js",
-    "type": "module"
+    "type": "module",
+    "scripts": {
+        "start:server": "node server.js",
+        "start:client": "node client.js"
+    }
 }
