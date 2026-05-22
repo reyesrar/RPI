@@ -1,53 +1,19 @@
-import net from 'net';
 import readline from 'readline';
+import CalculatorStub from './stubs/calculatorStub.js';
 
-const PORT = 3000;
-const HOST = process.argv[2] || 'localhost';
-
-console.log(`Connecting to server`);
+const stub = new CalculatorStub(process.argv[2]);
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-function invokeMethod(className, method, params) {
-    return new Promise((resolve, reject) => {
-        const client = new net.Socket();
-        
-        client.connect(PORT, HOST, () => {
-            console.log('Connected to server');
-            
-            const request = {
-                className: className,
-                method: method,
-                params: params
-            };
-            
-            client.write(JSON.stringify(request));
-        });
-        
-        client.on('data', (data) => {
-            const response = JSON.parse(data.toString());
-            
-            if (response.success) {
-                console.log('> Result:', response.result);
-                resolve(response.result);
-            } else {
-                console.error('> Error:', response.error);
-                reject(new Error(response.error));
-            }
-            client.destroy();
-            showMenu();
-        });
-        
-        client.on('error', (err) => {
-            console.error(' Connection error:', err.message);
-            reject(err);
-            showMenu();
-        });
-    });
-}
+const operations = {
+    '1': 'add',
+    '2': 'subtract',
+    '3': 'multiply',
+    '4': 'divide'
+};
 
 function showMenu() {
     console.log('\nCalculator:');
@@ -56,50 +22,36 @@ function showMenu() {
     console.log('3. multiply(a, b)');
     console.log('4. divide(a, b)');
     console.log('5. Exit');
-    
+
     rl.question('\nSelect: ', (choice) => {
-        switch (choice) {
-            case '1':
-                getParams('calculator', 'add', 2);
-                break;
-            case '2':
-                getParams('calculator', 'subtract', 2);
-                break;
-            case '3':
-                getParams('calculator', 'multiply', 2);
-                break;
-            case '4':
-                getParams('calculator', 'divide', 2);
-                break;
-            case '5':
-                console.log('Exiting...');
-                rl.close();
-                process.exit(0);
-                break;
-            default:
-                console.log('Invalid choice');
-                showMenu();
+        if (choice === '5') {
+            console.log('Exiting...');
+            rl.close();
+            process.exit(0);
         }
+        const op = operations[choice];
+        if (!op) {
+            console.log('Invalid choice');
+            return showMenu();
+        }
+        getParams(op);
     });
 }
 
-function getParams(className, method, numParams) {
-    const params = [];
-    let count = 0;
-    
-    function askNext() {
-        if (count < numParams) {
-            rl.question(`Value ${count + 1}: `, (value) => {
-                params.push(parseFloat(value));
-                count++;
-                askNext();
-            });
-        } else {
-            invokeMethod(className, method, params);
-        }
-    }
-    
-    askNext();
+function getParams(op) {
+    rl.question('Value 1: ', (v1) => {
+        rl.question('Value 2: ', async (v2) => {
+            const a = parseFloat(v1);
+            const b = parseFloat(v2);
+            try {
+                const result = await stub[op](a, b);
+                console.log('> Result:', result);
+            } catch (err) {
+                console.error('> Error:', err.message);
+            }
+            showMenu();
+        });
+    });
 }
 
 showMenu();
