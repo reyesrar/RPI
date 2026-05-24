@@ -1,18 +1,19 @@
 import readline from 'readline';
 import CalculatorStub from './stubs/calculatorStub.js';
 
-const stub = new CalculatorStub(process.argv[2]);
+const HOST = process.argv[2] || 'localhost';
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
+// Configuration: define available operations with number of params
 const operations = {
-    '1': 'add',
-    '2': 'subtract',
-    '3': 'multiply',
-    '4': 'divide'
+    '1': { className: 'calculator', method: 'add', params: 2, paramTypes: ['number', 'number'] },
+    '2': { className: 'calculator', method: 'subtract', params: 2, paramTypes: ['number', 'number'] },
+    '3': { className: 'calculator', method: 'multiply', params: 2, paramTypes: ['number', 'number'] },
+    '4': { className: 'calculator', method: 'divide', params: 2, paramTypes: ['number', 'number'] }
 };
 
 function showMenu() {
@@ -29,29 +30,57 @@ function showMenu() {
             rl.close();
             process.exit(0);
         }
+        
         const op = operations[choice];
         if (!op) {
             console.log('Invalid choice');
             return showMenu();
         }
+        
         getParams(op);
     });
 }
 
-function getParams(op) {
-    rl.question('Value 1: ', (v1) => {
-        rl.question('Value 2: ', async (v2) => {
-            const a = parseFloat(v1);
-            const b = parseFloat(v2);
-            try {
-                const result = await stub[op](a, b);
-                console.log('> Result:', result);
-            } catch (err) {
-                console.error('> Error:', err.message);
-            }
-            showMenu();
-        });
-    });
+// Function to collect N parameters based on operation config
+function getParams(operation) {
+    const params = [];
+    let count = 0;
+    
+    function askNext() {
+        if (count < operation.params) {
+            const paramType = operation.paramTypes[count];
+            rl.question(`Value ${count + 1}: `, (value) => {
+                // Convert based on type
+                if (paramType === 'number') {
+                    params.push(parseFloat(value));
+                } else {
+                    params.push(value);
+                }
+                count++;
+                askNext();
+            });
+        } else {
+            invokeRemote(operation.className, operation.method, params);
+        }
+    }
+    
+    askNext();
+}
+
+// Remote invocation
+async function invokeRemote(className, method, params) {
+    try {
+        // Create stub for the specific class
+        const StubClass = (await import(`./stubs/calculatorStub.js`)).default;
+        const stub = new StubClass(HOST);
+        stub.className = className;
+        
+        const result = await stub[method](...params);
+        console.log('> Result:', result);
+    } catch (err) {
+        console.error('> Error:', err.message);
+    }
+    showMenu();
 }
 
 showMenu();

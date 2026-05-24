@@ -1,24 +1,44 @@
 import net from 'net';
 import { encodeRequest, decodeResponse } from '../protocol/codec.js';
-import { readFrames } from '../protocol/transport.js';
+import { readRequest } from '../protocol/transport.js';
 
+// Uses Proxy to intercept any method call
 class CalculatorStub {
     constructor(host = 'localhost', port = 3000) {
         this.host = host;
         this.port = port;
+        this.className = 'calculator';
+        
+        // Return a Proxy that intercepts all method calls
+        return new Proxy(this, {
+            get(target, method) {
+                if (method === 'host' || method === 'port' || method === 'className') {
+                    return target[method];
+                }
+                
+                if (typeof method === 'string') {
+                    return function(...args) {
+                        return target._invoke(method, args);
+                    };
+                }
+                
+                return target[method];
+            }
+        });
     }
 
-    _invoke(op, a, b) {
+    _invoke(method, params) {
         return new Promise((resolve, reject) => {
             const socket = net.createConnection(this.port, this.host, () => {
-                socket.write(encodeRequest('calculator', op, [a, b]));
+                socket.write(encodeRequest(this.className, method, params));
             });
 
-            readFrames(socket, (frame) => {
-                const response = decodeResponse(frame);
+            readRequest(socket, (request) => {
+                const response = decodeResponse(request);
                 socket.end();
-                if (response.ok) {
-                    resolve(response.value);
+                
+                if (response.success) {
+                    resolve(response.result);
                 } else {
                     reject(new Error(response.error));
                 }
@@ -27,11 +47,6 @@ class CalculatorStub {
             socket.on('error', (err) => reject(err));
         });
     }
-
-    add(a, b)      { return this._invoke('add', a, b); }
-    subtract(a, b) { return this._invoke('subtract', a, b); }
-    multiply(a, b) { return this._invoke('multiply', a, b); }
-    divide(a, b)   { return this._invoke('divide', a, b); }
 }
 
 export default CalculatorStub;

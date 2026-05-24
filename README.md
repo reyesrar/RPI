@@ -6,8 +6,8 @@ El cliente invoca operaciones aritméticas como si fueran locales; en realidad c
 
 - **IDL** — contrato de la interfaz.
 - **Stub** — proxy del lado cliente: serializa la llamada y la envía por TCP.
-- **Skeleton** — receptor del lado servidor: deserializa el frame e invoca el BO.
-- **Dispatcher** — registro que enruta cada frame al skeleton correcto según `className`.
+- **Skeleton** — receptor del lado servidor: deserializa el request e invoca el BO.
+- **Dispatcher** — registro que enruta cada request al skeleton correcto según `className`.
 - **BO (Business Object)** — la lógica real de la calculadora, JavaScript puro.
 - **Protocolo + Transporte** — wire format en texto plano sobre TCP.
 
@@ -20,7 +20,7 @@ client.js (menú)                                server.js (TCP bootstrap)
     │                                               │
     ▼                                               ▼
 stubs/calculatorStub.js  ──── TCP :3000 ────► skeleton/dispatcher.js
-    │  encodeRequest()                              │  handle(frame)
+    │  encodeRequest()                              │  handle(request)
     │  decodeResponse()                             ▼
     │                                   skeleton/calculatorSkeleton.js
     │                                       │  decodeRequest()
@@ -33,17 +33,17 @@ stubs/calculatorStub.js  ──── TCP :3000 ────► skeleton/dispatc
     └◄───────────────── OK|<valor>\n ◄──────────────┘
 ```
 
-| Componente | Responsabilidad |
-|---|---|
-| `idl/calculator.idl` | Contrato único. Stub y skeleton derivan de aquí. |
-| `bo/calculator.js` | Lógica de negocio pura. Sin red, sin serialización. |
-| `protocol/codec.js` | Única fuente de verdad del wire format. |
-| `protocol/transport.js` | Lectura de frames TCP delimitados por `\n`. |
-| `stubs/calculatorStub.js` | Presenta al cliente una API local que internamente va a TCP. |
-| `skeleton/calculatorSkeleton.js` | Mapea frames TCP → llamadas al BO y devuelve la respuesta. |
-| `skeleton/dispatcher.js` | Registro genérico; recibe el frame y delega al skeleton correcto. |
-| `server.js` | Solo abre el socket y pasa frames al dispatcher. |
-| `client.js` | Solo presenta el menú y usa el stub. |
+| Componente                         | Responsabilidad                                                       |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| `idl/calculator.idl`             | Contrato único. Stub y skeleton derivan de aquí.                    |
+| `bo/calculator.js`               | Lógica de negocio pura. Sin red, sin serialización.                 |
+| `protocol/codec.js`              | Única fuente de verdad del wire format.                              |
+| `protocol/transport.js`          | Lectura de request TCP delimitados por `\n`.                       |
+| `stubs/calculatorStub.js`        | Presenta al cliente una API local que internamente va a TCP.          |
+| `skeleton/calculatorSkeleton.js` | Mapea request TCP → llamadas al BO y devuelve la respuesta.         |
+| `skeleton/dispatcher.js`         | Registro genérico; recibe el request y delega al skeleton correcto. |
+| `server.js`                      | Solo abre el socket y pasa request al dispatcher.                    |
+| `client.js`                      | Solo presenta el menú y usa el stub.                                 |
 
 ## Estructura del proyecto
 
@@ -70,7 +70,7 @@ calculadora/
 
 ## Protocolo de comunicación
 
-Wire format en texto plano, frames delimitados por `\n`.
+Wire format en texto plano, request delimitados por `\n`.
 
 **Request (cliente → servidor):**
 
@@ -99,7 +99,7 @@ OK|8\n
 ERR|Division by zero\n
 ```
 
-- Sin JSON, sin headers, sin longitud de frame.
+- Sin JSON, sin headers, sin longitud de request.
 - Los argumentos viajan como strings y se convierten a número en el skeleton.
 - El transporte acumula bytes hasta encontrar `\n`.
 
@@ -138,9 +138,9 @@ node client.js 192.168.1.10
 
 ## Operaciones disponibles
 
-| Operación | Firma | Descripción |
-|---|---|---|
-| `add` | `add(a, b)` | Suma `a + b`. |
-| `subtract` | `subtract(a, b)` | Resta `a - b`. |
-| `multiply` | `multiply(a, b)` | Multiplica `a * b`. |
-| `divide` | `divide(a, b)` | Divide `a / b`. Si `b == 0` retorna `ERR\|Division by zero`. |
+| Operación   | Firma              | Descripción                                                      |
+| ------------ | ------------------ | ----------------------------------------------------------------- |
+| `add`      | `add(a, b)`      | Suma `a + b`.                                                   |
+| `subtract` | `subtract(a, b)` | Resta `a - b`.                                                  |
+| `multiply` | `multiply(a, b)` | Multiplica `a * b`.                                             |
+| `divide`   | `divide(a, b)`   | Divide `a / b`. Si `b == 0` retorna `ERR\|Division by zero`. |

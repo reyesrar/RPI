@@ -1,21 +1,32 @@
-export function encodeRequest(className, op, args) {
-    return `${className}|${op}|${args.join('|')}\n`;
+const SEPARATOR = '|';
+
+export function encodeRequest(className, method, params) {
+    const paramsStr = params.map(p => String(p)).join(SEPARATOR);
+    return `${className}${SEPARATOR}${method}${SEPARATOR}${paramsStr}\n`;
 }
 
-export function decodeRequest(frame) {
-    const parts = frame.trim().split('|');
-    const [className, op, ...rest] = parts;
-    return { className, op, args: rest.map(Number) };
+export function decodeRequest(request) {
+    const parts = request.trim().split(SEPARATOR);
+    const [className, method, ...rest] = parts;
+    
+    const params = rest.map(p => {
+        const num = Number(p);
+        return isNaN(num) ? p : num;
+    });
+    
+    return { className, method, params };
 }
 
-export function encodeResponse(ok, value) {
-    return ok ? `OK|${value}\n` : `ERR|${value}\n`;
+export function encodeResponse(success, value) {
+    return success ? `OK${SEPARATOR}${value}\n` : `ERR${SEPARATOR}${value}\n`;
 }
 
-export function decodeResponse(frame) {
-    const trimmed = frame.trim();
-    if (trimmed.startsWith('OK|')) {
-        return { ok: true, value: Number(trimmed.slice(3)) };
+export function decodeResponse(request) {
+    const trimmed = request.trim();
+    if (trimmed.startsWith(`OK${SEPARATOR}`)) {
+        const value = trimmed.slice(3);
+        const num = Number(value);
+        return { success: true, result: isNaN(num) ? value : num };
     }
-    return { ok: false, error: trimmed.slice(4) };
+    return { success: false, error: trimmed.slice(4) };
 }

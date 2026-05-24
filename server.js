@@ -1,18 +1,28 @@
 import net from 'net';
-import { readFrames } from './protocol/transport.js';
+import { readRequest } from './protocol/transport.js';
 import dispatcher from './skeleton/dispatcher.js';
-import './skeleton/calculatorSkeleton.js';
 
 const PORT = 3000;
 const HOST = '0.0.0.0';
 
 const server = net.createServer((socket) => {
-    readFrames(socket, (frame) => {
-        socket.write(dispatcher.handle(frame));
+    console.log('Client connected:', socket.remoteAddress);
+    
+    readRequest(socket, async (request) => {
+        console.log('Request:', request.trim());
+        
+        const response = await dispatcher.handle(request);
+        
+        console.log('Sending response:', response.trim());
+        socket.write(response);
     });
 
     socket.on('error', (err) => {
         console.error('Socket error:', err.message);
+    });
+    
+    socket.on('close', () => {
+        console.log('Client disconnected');
     });
 });
 
